@@ -180,9 +180,10 @@ func GetPosts(w http.ResponseWriter, req *http.Request) {
       post.content as post_content, post.created_at as post_created_at,
 			parent.id as parent_id, parent.content as parent_content,
 			parent_author.username as parent_author_username, parent_author.display_name as parent_author_display_name, parent_author.avatar_url as parent_author_avatar_url, 
-			ARRAY_AGG(DISTINCT attachments.url) as attachments_urls, ARRAY_AGG(attachments.type) as attachments_types,
+			(SELECT ARRAY_AGG(attachments.url) FROM attachments WHERE attachments.post_id = post.id) as attachments_urls,
+			(SELECT ARRAY_AGG(attachments.type) FROM attachments WHERE attachments.post_id = post.id) as attachments_types,
 			(SELECT count(likes) FROM likes WHERE likes.post_id = post.id) as likes,
-			count(comments) as comments,
+			count(DISTINCT comments) as comments,
 			EXISTS (SELECT user_id FROM likes WHERE likes.post_id = post.id AND likes.user_id = $3) as liked
 				FROM posts post
 				LEFT JOIN posts parent
@@ -370,9 +371,10 @@ author.id as author_id, author.username as author_username, author.display_name 
 post.content as post_content, post.created_at as post_created_at,
 parent.id as parent_id, parent.content as parent_content,
 parent_author.username as parent_author_username, parent_author.display_name as parent_author_display_name, parent_author.avatar_url as parent_author_avatar_url,
-ARRAY_AGG(DISTINCT attachments.url) as attachments_urls, ARRAY_AGG(attachments.type) as attachments_types,
+(SELECT ARRAY_AGG(attachments.url) FROM attachments WHERE attachments.post_id = post.id) as attachments_urls,
+(SELECT ARRAY_AGG(attachments.type) FROM attachments WHERE attachments.post_id = post.id) as attachments_types,
 (SELECT count(likes) FROM likes WHERE likes.post_id = $1) as likes,
-count(comments) as comments,
+count(DISTINCT comments) as comments,
 EXISTS (SELECT user_id FROM likes WHERE likes.post_id = $1 AND likes.user_id = $2) as liked
 FROM posts post
 INNER JOIN users author
