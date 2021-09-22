@@ -62,9 +62,15 @@ func main() {
 
 	logger.Infof("Listening on port %v", port)
 	if os.Getenv("ENV") == "dev" {
-		http.ListenAndServe(fmt.Sprintf(":%v", port), cors.Handler(router))
+		err = http.ListenAndServe(fmt.Sprintf(":%v", port), cors.Handler(router))
+		if err != nil {
+			logger.Fatalf("Fatal error while serving http: %v", err)
+		}
 	} else if os.Getenv("ENV") == "prod" {
-		http.ListenAndServeTLS(port, os.Getenv("HTTPS_CERT"), os.Getenv("HTTPS_CERT_KEY"), cors.Handler(router))
+		err = http.ListenAndServeTLS(port, os.Getenv("HTTPS_CERT"), os.Getenv("HTTPS_CERT_KEY"), cors.Handler(router))
+		if err != nil {
+			logger.Fatalf("Fatal error while serving https: %v", err)
+		}
 	}
 
 	defer db.DBPool.Close()
