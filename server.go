@@ -47,10 +47,9 @@ func main() {
 	})
 
 	router := mux.NewRouter().StrictSlash(true)
-	apiSubrouter := router.PathPrefix("/api/").Subrouter()
-	routes.RegisterUsersRoutes(apiSubrouter)     // only some routes need to validate the user/token
-	routes.RegisterMessagingRoutes(apiSubrouter) // all routes need to validate the user/token
-	routes.RegisterPostsRoutes(apiSubrouter)     // only some routes need to validate the user/token
+	routes.RegisterUsersRoutes(router)     // only some routes need to validate the user/token
+	routes.RegisterMessagingRoutes(router) // all routes need to validate the user/token
+	routes.RegisterPostsRoutes(router)     // only some routes need to validate the user/token
 	router.HandleFunc("/ws", func(w http.ResponseWriter, req *http.Request) {
 		sockets.ServeWs(hub, w, req)
 	})
