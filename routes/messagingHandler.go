@@ -253,7 +253,7 @@ func GetConversations(w http.ResponseWriter, req *http.Request) {
 		conversation := &models.Conversation{}
 		var conversationId uint64
 		var receiverId uint64
-		var lastMessageAuthorID uint64
+		var lastMessageAuthorID sql.NullInt64
 		var lastMessageAttachment sql.NullString
 
 		err := rows.Scan(&conversationId, &conversation.LastUpdated,
@@ -268,13 +268,15 @@ func GetConversations(w http.ResponseWriter, req *http.Request) {
 		conversation.ID = fmt.Sprintf("%v", conversationId)
 		conversation.Receiver.ID = fmt.Sprintf("%v", receiverId)
 
-		if conversation.LastMessage.String == "" && lastMessageAttachment.String != "" {
-			if lastMessageAuthorID == receiverId {
-				conversation.LastMessage.String = fmt.Sprintf("%s sent an attachment", conversation.Receiver.DisplayName)
-				conversation.LastMessage.Valid = true
-			} else {
-				conversation.LastMessage.String = "You sent an attachment"
-				conversation.LastMessage.Valid = true
+		if lastMessageAuthorID.Valid {
+			if conversation.LastMessage.String == "" && lastMessageAttachment.String != "" {
+				if uint64(lastMessageAuthorID.Int64) == receiverId {
+					conversation.LastMessage.String = fmt.Sprintf("%s sent an attachment", conversation.Receiver.DisplayName)
+					conversation.LastMessage.Valid = true
+				} else {
+					conversation.LastMessage.String = "You sent an attachment"
+					conversation.LastMessage.Valid = true
+				}
 			}
 		}
 
