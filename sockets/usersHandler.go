@@ -92,6 +92,8 @@ func UpdateProfile(socketPayload *models.SocketPayload, invokingClient *Client) 
 	payload := &models.SocketPayload{}
 	dataPayload := &models.UpdateProfileReturnPayload{}
 
+	var birthday time.Time
+
 	day := fmt.Sprintf("%v", profile.Birthday.Day)
 	month := fmt.Sprintf("%v", profile.Birthday.Month)
 	year := fmt.Sprintf("%v", profile.Birthday.Year)
@@ -104,7 +106,13 @@ func UpdateProfile(socketPayload *models.SocketPayload, invokingClient *Client) 
 		month = "0" + month
 	}
 
-	birthdayString := year + "-" + month + "-" + day
+	var birthdayString string
+
+	if isBirthdayValid {
+		birthdayString = year + "-" + month + "-" + day
+	} else {
+		birthdayString = dateLayout
+	}
 
 	birthday, err := time.Parse(dateLayout, birthdayString)
 	if err != nil {
