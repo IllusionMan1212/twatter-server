@@ -61,7 +61,11 @@ func main() {
 	}
 
 	logger.Infof("Listening on port %v", port)
-	http.ListenAndServe(fmt.Sprintf(":%v", port), cors.Handler(router))
+	if os.Getenv("ENV") == "dev" {
+		http.ListenAndServe(fmt.Sprintf(":%v", port), cors.Handler(router))
+	} else if os.Getenv("ENV") == "prod" {
+		http.ListenAndServeTLS(port, os.Getenv("HTTPS_CERT"), os.Getenv("HTTPS_CERT_KEY"), cors.Handler(router))
+	}
 
 	defer db.DBPool.Close()
 }
