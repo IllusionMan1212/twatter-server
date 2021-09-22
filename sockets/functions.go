@@ -71,7 +71,7 @@ func writePostAttachmentsFiles(attachments []models.SocketAttachment, postId uin
 
 		fileDirectory := fmt.Sprintf("../cdn/posts/%v/", postId)
 		if i == 0 {
-			err = os.Mkdir(fileDirectory, 0755)
+			err = os.MkdirAll(fileDirectory, 0755)
 			if err != nil {
 				logger.Errorf("Error while creating directory for post attachment(s): %v", err)
 				return []models.Attachment{}, errors.New("An error has occurred, please try again later")
