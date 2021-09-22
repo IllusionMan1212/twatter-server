@@ -486,7 +486,7 @@ func InitialSetup(w http.ResponseWriter, req *http.Request) {
 		}
 		extension := strings.Split(mimetype, "/")[1]
 		fileDirectory := fmt.Sprintf("../cdn/profile_images/%v/", sessionUser.ID)
-		err = os.Mkdir(fileDirectory, 0755)
+		err = os.MkdirAll(fileDirectory, 0755)
 		if err != nil {
 			utils.InternalServerErrorWithJSON(w, "")
 			logger.Errorf("Error while creating directory for user profile image: %v", err)
