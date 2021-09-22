@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"illusionman1212/twatter-go/db"
-	"illusionman1212/twatter-go/functions"
-	"illusionman1212/twatter-go/logger"
-	"illusionman1212/twatter-go/models"
-	"illusionman1212/twatter-go/utils"
 	"time"
+
+	"github.com/illusionman1212/twatter-server/db"
+	"github.com/illusionman1212/twatter-server/functions"
+	"github.com/illusionman1212/twatter-server/logger"
+	"github.com/illusionman1212/twatter-server/models"
+	"github.com/illusionman1212/twatter-server/utils"
 )
 
 const dateLayout = "2006-01-02"

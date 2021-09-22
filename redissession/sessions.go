@@ -5,11 +5,12 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"illusionman1212/twatter-go/models"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/illusionman1212/twatter-server/models"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/sessions"

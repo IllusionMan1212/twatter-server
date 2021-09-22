@@ -6,10 +6,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"illusionman1212/twatter-go/models"
 	"io/ioutil"
 	"os"
 	"time"
+
+	"github.com/illusionman1212/twatter-server/models"
 
 	"github.com/golang-jwt/jwt"
 )

@@ -3,10 +3,11 @@ package utils
 import (
 	"encoding/hex"
 	"encoding/json"
-	"illusionman1212/twatter-go/logger"
 	"math/rand"
 	"reflect"
 	"time"
+
+	"github.com/illusionman1212/twatter-server/logger"
 )
 
 func FatalError(err error) {

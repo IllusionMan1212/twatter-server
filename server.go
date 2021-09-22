@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"os"
 
-	"illusionman1212/twatter-go/db"
-	"illusionman1212/twatter-go/logger"
-	"illusionman1212/twatter-go/redissession"
-	"illusionman1212/twatter-go/routes"
-	"illusionman1212/twatter-go/sockets"
+	"github.com/illusionman1212/twatter-server/db"
+	"github.com/illusionman1212/twatter-server/logger"
+	"github.com/illusionman1212/twatter-server/redissession"
+	"github.com/illusionman1212/twatter-server/routes"
+	"github.com/illusionman1212/twatter-server/sockets"
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
@@ -17,12 +17,12 @@ import (
 )
 
 func main() {
+	logger.Initialize()
+
 	err := godotenv.Load()
 	if err != nil {
 		logger.Fatal(err)
 	}
-
-	logger.Initialize()
 
 	err = db.InitializeDB()
 	if err != nil {

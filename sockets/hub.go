@@ -2,8 +2,9 @@ package sockets
 
 import (
 	"fmt"
-	"illusionman1212/twatter-go/models"
-	"illusionman1212/twatter-go/utils"
+
+	"github.com/illusionman1212/twatter-server/models"
+	"github.com/illusionman1212/twatter-server/utils"
 )
 
 // Hub maintains the set of active clients and broadcasts messages to the

@@ -5,10 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"illusionman1212/twatter-go/db"
-	"illusionman1212/twatter-go/utils"
 	"os"
 	"strings"
+
+	"github.com/illusionman1212/twatter-server/db"
+	"github.com/illusionman1212/twatter-server/utils"
 
 	"github.com/go-oss/image/imageutil"
 )

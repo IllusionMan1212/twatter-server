@@ -3,10 +3,11 @@ package sockets
 import (
 	"context"
 	"fmt"
-	"illusionman1212/twatter-go/db"
-	"illusionman1212/twatter-go/logger"
-	"illusionman1212/twatter-go/models"
-	"illusionman1212/twatter-go/utils"
+
+	"github.com/illusionman1212/twatter-server/db"
+	"github.com/illusionman1212/twatter-server/logger"
+	"github.com/illusionman1212/twatter-server/models"
+	"github.com/illusionman1212/twatter-server/utils"
 )
 
 func Post(socketPayload *models.SocketPayload, clients []*Client, invokingClient *Client) {

@@ -2,12 +2,13 @@ package sockets
 
 import (
 	"bytes"
-	"illusionman1212/twatter-go/logger"
-	"illusionman1212/twatter-go/models"
-	"illusionman1212/twatter-go/redissession"
-	"illusionman1212/twatter-go/utils"
 	"net/http"
 	"time"
+
+	"github.com/illusionman1212/twatter-server/logger"
+	"github.com/illusionman1212/twatter-server/models"
+	"github.com/illusionman1212/twatter-server/redissession"
+	"github.com/illusionman1212/twatter-server/utils"
 
 	"github.com/gorilla/websocket"
 )

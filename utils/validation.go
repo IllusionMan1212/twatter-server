@@ -2,9 +2,10 @@ package utils
 
 import (
 	"errors"
-	"illusionman1212/twatter-go/models"
-	"illusionman1212/twatter-go/redissession"
 	"net/http"
+
+	"github.com/illusionman1212/twatter-server/models"
+	"github.com/illusionman1212/twatter-server/redissession"
 )
 
 func ValidateSession(req *http.Request, w http.ResponseWriter) (*models.User, error) {
