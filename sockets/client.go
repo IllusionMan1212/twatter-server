@@ -148,6 +148,7 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	session := redissession.GetSession(r)
 
 	if session.IsNew {
+		logger.Error("Unauthorized user trying to initiate a websocket connection")
 		conn.Close()
 		return
 	}
