@@ -67,7 +67,7 @@ func main() {
 			logger.Fatalf("Fatal error while serving http: %v", err)
 		}
 	} else if os.Getenv("ENV") == "prod" {
-		err = http.ListenAndServeTLS(port, os.Getenv("HTTPS_CERT"), os.Getenv("HTTPS_CERT_KEY"), cors.Handler(router))
+		err = http.ListenAndServeTLS(fmt.Sprintf(":%v", port), os.Getenv("HTTPS_CERT"), os.Getenv("HTTPS_CERT_KEY"), cors.Handler(router))
 		if err != nil {
 			logger.Fatalf("Fatal error while serving https: %v", err)
 		}
