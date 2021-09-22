@@ -1,4 +1,4 @@
-module github.com/illusionman1212/twatter
+module github.com/illusionman1212/twatter-server
 
 go 1.16
 
