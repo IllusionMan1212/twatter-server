@@ -16,6 +16,18 @@ func Post(socketPayload *models.SocketPayload, clients []*Client, invokingClient
 	// NOTE: this is still ugly af
 	utils.UnmarshalJSON([]byte(utils.MarshalJSON(socketPayload.Data)), post)
 
+	if invokingClient.userId != post.Author.ID {
+		errPayload := `{
+			"eventType": "postError",
+			"data": {
+				"message": "Unauthorized to perform this action"
+			}
+		}`
+		invokingClient.emitEvent([]byte(errPayload))
+		logger.Error("Attempt to make a post with mismatched user id")
+		return
+	}
+
 	if len(post.Attachments) == 0 && post.Content == "" {
 		errPayload := `{
 			"eventType": "postError",
@@ -47,7 +59,7 @@ func Post(socketPayload *models.SocketPayload, clients []*Client, invokingClient
 
 	returnedPost := &models.DBPost{}
 
-	err = db.DBPool.QueryRow(context.Background(), insertQuery, postId, post.Content, post.Author.ID).Scan(&returnedPost.CreatedAt)
+	err = db.DBPool.QueryRow(context.Background(), insertQuery, postId, post.Content, invokingClient.userId).Scan(&returnedPost.CreatedAt)
 	if err != nil {
 		errPayload := `{
 			"eventType": "postError",
@@ -97,6 +109,18 @@ func Comment(socketPayload *models.SocketPayload, clients []*Client, invokingCli
 
 	utils.UnmarshalJSON([]byte(utils.MarshalJSON(socketPayload.Data)), comment)
 
+	if invokingClient.userId != comment.Author.ID {
+		errPayload := `{
+			"eventType": "postError",
+			"data": {
+				"message": "Unauthorized to perform this action"
+			}
+		}`
+		invokingClient.emitEvent([]byte(errPayload))
+		logger.Error("Attempt to make a post with a mismatched user id")
+		return
+	}
+
 	if len(comment.Attachments) == 0 && comment.Content == "" {
 		errPayload := `{
 			"eventType": "postError",
@@ -130,7 +154,7 @@ func Comment(socketPayload *models.SocketPayload, clients []*Client, invokingCli
 
 	returnedComment := &models.DBPost{}
 
-	err = db.DBPool.QueryRow(context.Background(), insertQuery, commentId, comment.Content, comment.Author.ID, comment.ReplyingTo).Scan(&returnedComment.CreatedAt)
+	err = db.DBPool.QueryRow(context.Background(), insertQuery, commentId, comment.Content, invokingClient.userId, comment.ReplyingTo).Scan(&returnedComment.CreatedAt)
 	if err != nil {
 		errPayload := `{
 			"eventType": "postError",

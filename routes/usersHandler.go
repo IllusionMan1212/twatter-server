@@ -398,12 +398,36 @@ func InitialSetup(w http.ResponseWriter, req *http.Request) {
 		if err != nil {
 			utils.InternalServerErrorWithJSON(w, "")
 			logger.Errorf("Error while converting string to int: %v", err)
+			return
 		}
 
 		month, err := strconv.Atoi(birthdayMonth)
 		if err != nil {
 			utils.InternalServerErrorWithJSON(w, "")
 			logger.Errorf("Error while converting string to int: %v", err)
+			return
+		}
+
+		year, err := strconv.Atoi(birthdayYear)
+		if err != nil {
+			utils.InternalServerErrorWithJSON(w, "")
+			logger.Errorf("Error while converting string to int: %v", err)
+			return
+		}
+
+		bday := &models.Birthday{}
+		bday.Day = day
+		bday.Month = month
+		bday.Year = year
+
+		if isValidBirthday := utils.ValidateBirthday(*bday); !isValidBirthday {
+			utils.BadRequestWithJSON(w, `{
+				"message": "Invalid birthday, please input a valid birthday",
+				"status": 400,
+				"success": false
+			}`)
+			logger.Info("Attempt to input an invalid birthday on initial setup")
+			return
 		}
 
 		if day < 10 {

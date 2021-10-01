@@ -47,6 +47,9 @@ type Client struct {
 
 	// Buffered channel of outbound messages.
 	send chan []byte
+
+	// id of the user that owns this client
+	userId string
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -166,7 +169,7 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 
 	payload := &UserClientPayload{}
 
-	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 1024)}
+	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 1024), userId: user.ID}
 
 	payload.Client = client
 	payload.UserID = user.ID

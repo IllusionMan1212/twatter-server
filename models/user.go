@@ -57,7 +57,6 @@ type Birthday struct {
 }
 
 type ProfileValues struct {
-	UserID       string           `json:"userId"`
 	DisplayName  string           `json:"displayName"`
 	ProfileImage SocketAttachment `json:"profileImage"`
 	Bio          string           `json:"bio"`

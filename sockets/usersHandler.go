@@ -20,15 +20,9 @@ func UpdateProfile(socketPayload *models.SocketPayload, invokingClient *Client) 
 
 	utils.UnmarshalJSON([]byte(utils.MarshalJSON(socketPayload.Data)), profile)
 
-	if profile.UserID == "" {
-		sendGenericSocketErr(invokingClient)
-		logger.Error("No user id was sent when updating profile")
-		return
-	}
-
 	if profile.Bio != "" {
 		query := `UPDATE users SET bio = $1 WHERE id = $2;`
-		_, err := db.DBPool.Exec(context.Background(), query, profile.Bio, profile.UserID)
+		_, err := db.DBPool.Exec(context.Background(), query, profile.Bio, invokingClient.userId)
 
 		if err != nil {
 			sendGenericSocketErr(invokingClient)
@@ -39,7 +33,7 @@ func UpdateProfile(socketPayload *models.SocketPayload, invokingClient *Client) 
 
 	if profile.DisplayName != "" {
 		query := `UPDATE users SET display_name = $1 WHERE id = $2;`
-		_, err := db.DBPool.Exec(context.Background(), query, profile.DisplayName, profile.UserID)
+		_, err := db.DBPool.Exec(context.Background(), query, profile.DisplayName, invokingClient.userId)
 		if err != nil {
 			sendGenericSocketErr(invokingClient)
 			logger.Errorf("Error while updating user's display name: %v", err)
@@ -67,7 +61,7 @@ func UpdateProfile(socketPayload *models.SocketPayload, invokingClient *Client) 
 			return
 		}
 
-		err = functions.WriteProfileImage(profile.ProfileImage.Mimetype, profile.UserID, buf)
+		err = functions.WriteProfileImage(profile.ProfileImage.Mimetype, invokingClient.userId, buf)
 		if err != nil {
 			sendGenericSocketErr(invokingClient)
 			logger.Errorf("Error while writing profile image: %v", err)
@@ -75,40 +69,34 @@ func UpdateProfile(socketPayload *models.SocketPayload, invokingClient *Client) 
 		}
 	}
 
-	isBirthdayValid := profile.Birthday.Year != 1 && profile.Birthday.Month != 1 && profile.Birthday.Day != 1
+	isBirthdayValid := utils.ValidateBirthday(profile.Birthday)
+
+	var birthday time.Time
+	var birthdayString string
 
 	if isBirthdayValid {
 		birthday := fmt.Sprintf("%v-%v-%v", profile.Birthday.Year, profile.Birthday.Month, profile.Birthday.Day)
 
 		query := `UPDATE users SET birthday = $1 WHERE id = $2;`
-		_, err := db.DBPool.Exec(context.Background(), query, birthday, profile.UserID)
+		_, err := db.DBPool.Exec(context.Background(), query, birthday, invokingClient.userId)
 		if err != nil {
 			sendGenericSocketErr(invokingClient)
 			logger.Errorf("Error while updating user's birthday: %v", err)
 			return
 		}
-	}
 
-	payload := &models.SocketPayload{}
-	dataPayload := &models.UpdateProfileReturnPayload{}
+		day := fmt.Sprintf("%v", profile.Birthday.Day)
+		month := fmt.Sprintf("%v", profile.Birthday.Month)
+		year := fmt.Sprintf("%v", profile.Birthday.Year)
 
-	var birthday time.Time
+		if profile.Birthday.Day < 10 {
+			day = "0" + day
+		}
 
-	day := fmt.Sprintf("%v", profile.Birthday.Day)
-	month := fmt.Sprintf("%v", profile.Birthday.Month)
-	year := fmt.Sprintf("%v", profile.Birthday.Year)
+		if profile.Birthday.Month < 10 {
+			month = "0" + month
+		}
 
-	if profile.Birthday.Day < 10 {
-		day = "0" + day
-	}
-
-	if profile.Birthday.Month < 10 {
-		month = "0" + month
-	}
-
-	var birthdayString string
-
-	if isBirthdayValid {
 		birthdayString = year + "-" + month + "-" + day
 	} else {
 		birthdayString = dateLayout
@@ -121,7 +109,10 @@ func UpdateProfile(socketPayload *models.SocketPayload, invokingClient *Client) 
 		return
 	}
 
-	dataPayload.UserID = fmt.Sprintf("%v", profile.UserID)
+	payload := &models.SocketPayload{}
+	dataPayload := &models.UpdateProfileReturnPayload{}
+
+	dataPayload.UserID = invokingClient.userId
 	dataPayload.DisplayName = profile.DisplayName
 	dataPayload.Bio = profile.Bio
 	dataPayload.ProfileImage = profile.ProfileImage.Data
@@ -135,12 +126,7 @@ func UpdateProfile(socketPayload *models.SocketPayload, invokingClient *Client) 
 }
 
 func RemoveBirthday(socketPayload *models.SocketPayload, invokingClient *Client) {
-	user := &models.User{}
-
-	// NOTE: this looks disgusting topkek
-	utils.UnmarshalJSON([]byte(utils.MarshalJSON(socketPayload.Data)), user)
-
-	_, err := db.DBPool.Exec(context.Background(), "UPDATE users SET birthday = null WHERE id = $1;", user.ID)
+	_, err := db.DBPool.Exec(context.Background(), "UPDATE users SET birthday = null WHERE id = $1;", invokingClient.userId)
 	if err != nil {
 		sendGenericSocketErr(invokingClient)
 		logger.Errorf("Error while removing user's birthday: %v", err)
@@ -150,7 +136,7 @@ func RemoveBirthday(socketPayload *models.SocketPayload, invokingClient *Client)
 	payload := &models.SocketPayload{}
 	dataPayload := &models.RemoveBirthdayReturnPayload{}
 
-	dataPayload.ID = user.ID
+	dataPayload.ID = invokingClient.userId
 
 	payload.EventType = "birthdayRemoved"
 	payload.Data = dataPayload

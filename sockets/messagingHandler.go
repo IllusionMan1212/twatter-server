@@ -18,6 +18,18 @@ func Message(socketPayload *models.SocketPayload, clients []*Client, invokingCli
 
 	utils.UnmarshalJSON([]byte(utils.MarshalJSON(socketPayload.Data)), message)
 
+	if invokingClient.userId != message.SenderId {
+		errPayload := `{
+			"eventType": "error",
+			"data": {
+				"message": "Unauthorized to perform this action"
+			}
+		}`
+		invokingClient.emitEvent([]byte(errPayload))
+		logger.Error("Attempt to send a message with mismatched user ids")
+		return
+	}
+
 	insertMessageQuery := `INSERT INTO messages(id, author_id, conversation_id, content, read_by)
 		VALUES($1, $2, $3, $4, $5)`
 
@@ -27,6 +39,8 @@ func Message(socketPayload *models.SocketPayload, clients []*Client, invokingCli
 		logger.Errorf("Error while parsing conversation id: %v", err)
 		return
 	}
+
+	// TODO: check if conversation exists before writing the message to the DB
 
 	messageId, err := db.Snowflake.NextID()
 	if err != nil {
@@ -114,6 +128,8 @@ func Typing(socketPayload *models.SocketPayload, invokingClient *Client, eventTy
 
 	utils.UnmarshalJSON([]byte(utils.MarshalJSON(socketPayload.Data)), data)
 
+	// TODO: check if sender id and receiver id are both members of the conversation
+
 	payload := &models.SocketPayload{}
 	typingData := &models.TypingReturnPayload{}
 
@@ -132,9 +148,21 @@ func MarkMessagesAsRead(socketPayload *models.SocketPayload, invokingClient *Cli
 
 	utils.UnmarshalJSON([]byte(utils.MarshalJSON(socketPayload.Data)), data)
 
+	if invokingClient.userId != data.UserID {
+		errPayload := `{
+			"eventType": "error",
+			"data": {
+				"message": "Unauthorized to perform this action"
+			}
+		}`
+		invokingClient.emitEvent([]byte(errPayload))
+		logger.Error("Attempt to mark messages as read with a mismatched user id")
+		return
+	}
+
 	updateQuery := `UPDATE messages SET read_by = ARRAY_APPEND(read_by, $1) WHERE conversation_id = $2 AND $1 <> ALL(read_by)`
 
-	_, err := db.DBPool.Exec(context.Background(), updateQuery, data.UserID, data.ConversationID)
+	_, err := db.DBPool.Exec(context.Background(), updateQuery, invokingClient.userId, data.ConversationID)
 	if err != nil {
 		sendGenericSocketErr(invokingClient)
 	}

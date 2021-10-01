@@ -31,17 +31,22 @@ func StartConversation(w http.ResponseWriter, req *http.Request) {
 
 	sessionUser, err := utils.ValidateSession(req, w)
 	if err != nil {
+		utils.UnauthorizedWithJSON(w, `{
+			"message": "Unauthorized to perform this action",
+			"status": 401,
+			"success": false
+		}`)
 		logger.Error(err)
 		return
 	}
 
 	if sessionUser.ID != fmt.Sprintf("%v", body.SenderId) {
 		utils.UnauthorizedWithJSON(w, `{
-			"message": "Unauthorized user, please log in",
+			"message": "Unauthorized to perform this action",
 			"status": 401,
 			"success": false
 		}`)
-		logger.Info("Mismatching cookie user id and senderId")
+		logger.Error("Mismatching cookie user id and senderId")
 		return
 	}
 
@@ -154,12 +159,23 @@ func DeleteMessage(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	updateQuery := `UPDATE messages SET deleted = true, content = '' WHERE id = $1;`
+	sessionUser, err := utils.ValidateSession(req, w)
+	if err != nil {
+		utils.UnauthorizedWithJSON(w, `{
+			"message": "Unauthorized to perform this action",
+			"status": 401,
+			"success": false
+		}`)
+		logger.Errorf("Error while getting session user when deleting message: %v", err)
+		return
+	}
 
-	_, err = db.DBPool.Exec(context.Background(), updateQuery, body.MessageID)
+	updateQuery := `UPDATE messages SET deleted = true, content = '' WHERE id = $1 AND author_id = $2;`
+
+	_, err = db.DBPool.Exec(context.Background(), updateQuery, body.MessageID, sessionUser.ID)
 	if err != nil {
 		utils.InternalServerErrorWithJSON(w, "")
-		logger.Errorf("Error while updating message: %v", err)
+		logger.Errorf("Error while deleting message: %v", err)
 		return
 	}
 
@@ -302,7 +318,7 @@ func GetMessages(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	_, err = utils.ValidateSession(req, w)
+	sessionUser, err := utils.ValidateSession(req, w)
 	if err != nil {
 		logger.Error(err)
 		return
@@ -313,11 +329,13 @@ func GetMessages(w http.ResponseWriter, req *http.Request) {
 		FROM messages message
 		LEFT JOIN message_attachments attachment
 		ON attachment.message_id = message.id
+		LEFT JOIN conversations convo
+		ON convo.id = message.conversation_id AND $2 = ANY(convo.participants)
 		WHERE conversation_id = $1
 		ORDER BY message.sent_time DESC
-		LIMIT 50 OFFSET $2;`
+		LIMIT 50 OFFSET $3;`
 
-	rows, err := db.DBPool.Query(context.Background(), query, conversationId, page*50)
+	rows, err := db.DBPool.Query(context.Background(), query, conversationId, sessionUser.ID, page*50)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			utils.NotFoundWithJSON(w, `{
