@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/illusionman1212/twatter-server/db"
@@ -13,7 +15,10 @@ import (
 	"github.com/illusionman1212/twatter-server/utils"
 )
 
-const dateLayout = "2006-01-02"
+const (
+	dateLayout       = "2006-01-02"
+	displayNameRegex = "(?i)^[a-z0-9!$%^&*()_+|~=`{}\\[\\]:\";'<>?,.\\/\\\\]+$"
+)
 
 func UpdateProfile(socketPayload *models.SocketPayload, invokingClient *Client) {
 	profile := &models.ProfileValues{}
@@ -31,14 +36,46 @@ func UpdateProfile(socketPayload *models.SocketPayload, invokingClient *Client) 
 		}
 	}
 
-	if profile.DisplayName != "" {
-		query := `UPDATE users SET display_name = $1 WHERE id = $2;`
-		_, err := db.DBPool.Exec(context.Background(), query, profile.DisplayName, invokingClient.userId)
-		if err != nil {
-			sendGenericSocketErr(invokingClient)
-			logger.Errorf("Error while updating user's display name: %v", err)
+	regex, err := regexp.Compile(displayNameRegex)
+	if err != nil {
+		sendGenericSocketErr(invokingClient)
+		logger.Errorf("Error while compiling displayname regex: %v", err)
+		return
+	}
+
+	displayName := strings.TrimSpace(profile.DisplayName)
+
+	if displayName != "" {
+		if regex.MatchString(displayName) {
+			query := `UPDATE users SET display_name = $1 WHERE id = $2;`
+			_, err := db.DBPool.Exec(context.Background(), query, displayName, invokingClient.userId)
+			if err != nil {
+				sendGenericSocketErr(invokingClient)
+				logger.Errorf("Error while updating user's display name: %v", err)
+				return
+
+			}
+		} else {
+			payload := `{
+				"eventType": "error",
+				"data": {
+					"message": "Display name cannot contain special characters"
+				}
+			}`
+
+			invokingClient.emitEvent([]byte(payload))
 			return
 		}
+	} else {
+		payload := `{
+			"eventType": "error",
+			"data": {
+				"message": "Display name cannot be empty"
+			}
+		}`
+
+		invokingClient.emitEvent([]byte(payload))
+		return
 	}
 
 	if profile.ProfileImage.Data != "" {
@@ -102,7 +139,7 @@ func UpdateProfile(socketPayload *models.SocketPayload, invokingClient *Client) 
 		birthdayString = dateLayout
 	}
 
-	birthday, err := time.Parse(dateLayout, birthdayString)
+	birthday, err = time.Parse(dateLayout, birthdayString)
 	if err != nil {
 		sendGenericSocketErr(invokingClient)
 		logger.Errorf("Error while parsing date: %v", err)
@@ -113,7 +150,7 @@ func UpdateProfile(socketPayload *models.SocketPayload, invokingClient *Client) 
 	dataPayload := &models.UpdateProfileReturnPayload{}
 
 	dataPayload.UserID = invokingClient.userId
-	dataPayload.DisplayName = profile.DisplayName
+	dataPayload.DisplayName = displayName
 	dataPayload.Bio = profile.Bio
 	dataPayload.ProfileImage = profile.ProfileImage.Data
 	dataPayload.Birthday.Time = birthday

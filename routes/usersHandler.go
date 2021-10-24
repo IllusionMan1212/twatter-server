@@ -13,6 +13,7 @@ import (
 	"net/mail"
 	"net/smtp"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -28,7 +29,10 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const dateLayout = "2006-01-02"
+const (
+	dateLayout    = "2006-01-02"
+	usernameRegex = "(?i)^[a-z0-9_]+$"
+)
 
 func ValidateToken(w http.ResponseWriter, req *http.Request) {
 	sessionUser, err := utils.ValidateSession(req, w)
@@ -179,6 +183,23 @@ func Create(w http.ResponseWriter, req *http.Request) {
 			"success": false
 		}`)
 		logger.Info("Username is either too short or too long")
+		return
+	}
+
+	regex, err := regexp.Compile(usernameRegex)
+	if err != nil {
+		utils.InternalServerErrorWithJSON(w, "")
+		logger.Errorf("Error while compiling username regex: %v", err)
+		return
+	}
+
+	if !regex.MatchString(username) {
+		utils.BadRequestWithJSON(w, `{
+			"message": "Username cannot contain special characters",
+			"status": 400,
+			"success": false
+		}`)
+		logger.Info("Attempt to create new account with a username containing special characters: %v", err)
 		return
 	}
 
