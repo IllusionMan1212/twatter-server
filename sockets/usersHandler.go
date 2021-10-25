@@ -136,7 +136,16 @@ func UpdateProfile(socketPayload *models.SocketPayload, invokingClient *Client) 
 
 		birthdayString = year + "-" + month + "-" + day
 	} else {
-		birthdayString = dateLayout
+		payload := `{
+			"eventType": "error",
+			"data": {
+				"message": "Invalid birthday, please enter a correct one."
+			}
+		}`
+
+		invokingClient.emitEvent([]byte(payload))
+		logger.Errorf("Attempt to change birthday to an invalid one: %v", profile.Birthday)
+		return
 	}
 
 	birthday, err = time.Parse(dateLayout, birthdayString)
