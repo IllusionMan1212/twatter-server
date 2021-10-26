@@ -26,6 +26,19 @@ func UpdateProfile(socketPayload *models.SocketPayload, invokingClient *Client) 
 	utils.UnmarshalJSON([]byte(utils.MarshalJSON(socketPayload.Data)), profile)
 
 	if profile.Bio != "" {
+		if len(profile.Bio) > 150 {
+			payload := `{
+				"eventType": "error",
+				"data": {
+					"message": "Bio cannot be longer than 150 characters"
+				}
+			}`
+
+			invokingClient.emitEvent([]byte(payload))
+			logger.Errorf("Bio with over 150 characters rejected")
+			return
+		}
+
 		query := `UPDATE users SET bio = $1 WHERE id = $2;`
 		_, err := db.DBPool.Exec(context.Background(), query, profile.Bio, invokingClient.userId)
 
