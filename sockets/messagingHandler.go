@@ -3,7 +3,6 @@ package sockets
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strconv"
 	"time"
 
@@ -73,8 +72,6 @@ func Message(socketPayload *models.SocketPayload, clients []*Client, invokingCli
 	updateQuery := `UPDATE conversations SET last_updated = now() at time zone 'utc', participants = $1 WHERE id = $2`
 
 	participants := []uint64{uint64(senderId), uint64(receiverId)}
-
-	sort.Slice(participants, func(i, j int) bool { return participants[i] < participants[j] })
 
 	_, err = db.DBPool.Exec(context.Background(), updateQuery, participants, conversationId)
 	if err != nil {

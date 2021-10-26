@@ -61,7 +61,8 @@ func StartConversation(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// checking if the conversation already exists (it exists if initiated by the other party but no messages were sent)
-	checkQuery := `SELECT id, participants FROM conversations WHERE members = $1;`
+	// Checks if all the unique elements in 'members' are present in '$1' as well
+	checkQuery := `SELECT id, participants FROM conversations WHERE members <@ $1;`
 	existingConvoId := uint64(0)
 	existingParticipants := make([]uint64, 0)
 
@@ -80,9 +81,6 @@ func StartConversation(w http.ResponseWriter, req *http.Request) {
 
 	membersToCheck := []uint64{uint64(receiverId), uint64(senderId)}
 
-	// if the sorted members slice matches an existing sorted array in the DB then a conversation already exists. otherwise create a new one
-	sort.Slice(membersToCheck, func(i, j int) bool { return membersToCheck[i] < membersToCheck[j] })
-
 	err = db.DBPool.QueryRow(context.Background(), checkQuery, membersToCheck).Scan(&existingConvoId, &existingParticipants)
 	if err != nil {
 		if err != pgx.ErrNoRows {
@@ -95,12 +93,10 @@ func StartConversation(w http.ResponseWriter, req *http.Request) {
 	if existingConvoId != 0 {
 		// check if the sender isn't in the participants and add them
 
-		if !utils.Contains(existingParticipants, body.SenderId) {
+		if !utils.Contains(existingParticipants, uint64(senderId)) {
 			updateQuery := `UPDATE conversations SET participants = $1 WHERE id = $2`
 
 			newParticipants := append(existingParticipants, uint64(senderId))
-
-			sort.Slice(newParticipants, func(i, j int) bool { return newParticipants[i] < newParticipants[j] })
 
 			_, err = db.DBPool.Exec(context.Background(), updateQuery, newParticipants, existingConvoId)
 			if err != nil {
@@ -128,9 +124,6 @@ func StartConversation(w http.ResponseWriter, req *http.Request) {
 
 	members := []uint64{uint64(receiverId), uint64(senderId)}
 	participants := []uint64{uint64(senderId)}
-
-	// always sort the members array so lookups in the DB are faster and we're able to easily compare
-	sort.Slice(members, func(i, j int) bool { return members[i] < members[j] })
 
 	insertQuery := `INSERT INTO conversations(id, members, participants)
 		VALUES($1, $2, $3)`
