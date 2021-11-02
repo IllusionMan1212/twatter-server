@@ -472,7 +472,7 @@ author.id as author_id, author.username as author_username, author.display_name 
 comment.content as comment_content, comment.created_at as comment_created_at,
 ARRAY_AGG(DISTINCT attachments.url) as attachments_urls, ARRAY_AGG(attachments.type) as attachments_types,
 (SELECT count(likes) FROM likes WHERE likes.post_id = comment.id) as likes,
-count(comments) as comments,
+count(DISTINCT comments) as comments,
 EXISTS (SELECT user_id FROM likes WHERE likes.post_id = comment.id AND likes.user_id = $2)
 FROM posts comment
 INNER JOIN users author
