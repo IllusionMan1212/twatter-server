@@ -57,10 +57,11 @@ type Birthday struct {
 }
 
 type ProfileValues struct {
-	DisplayName  string           `json:"displayName"`
-	ProfileImage SocketAttachment `json:"profileImage"`
-	Bio          string           `json:"bio"`
-	Birthday     Birthday         `json:"birthday"`
+	DisplayName   string           `json:"displayName"`
+	ProfileImage  SocketAttachment `json:"profileImage"`
+	Bio           string           `json:"bio"`
+	Birthday      Birthday         `json:"birthday"`
+	IsBirthdaySet bool             `json:"isBirthdaySet"`
 }
 
 type RemoveBirthdayReturnPayload struct {

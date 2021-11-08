@@ -124,7 +124,7 @@ func UpdateProfile(socketPayload *models.SocketPayload, invokingClient *Client) 
 	var birthday time.Time
 	var birthdayString string
 
-	if isBirthdayValid {
+	if isBirthdayValid && profile.IsBirthdaySet {
 		birthday := fmt.Sprintf("%v-%v-%v", profile.Birthday.Year, profile.Birthday.Month, profile.Birthday.Day)
 
 		query := `UPDATE users SET birthday = $1 WHERE id = $2;`
@@ -148,7 +148,7 @@ func UpdateProfile(socketPayload *models.SocketPayload, invokingClient *Client) 
 		}
 
 		birthdayString = year + "-" + month + "-" + day
-	} else {
+	} else if !isBirthdayValid && profile.IsBirthdaySet {
 		payload := `{
 			"eventType": "error",
 			"data": {
@@ -159,6 +159,8 @@ func UpdateProfile(socketPayload *models.SocketPayload, invokingClient *Client) 
 		invokingClient.emitEvent([]byte(payload))
 		logger.Errorf("Attempt to change birthday to an invalid one: %v", profile.Birthday)
 		return
+	} else {
+		birthdayString = dateLayout
 	}
 
 	birthday, err = time.Parse(dateLayout, birthdayString)
