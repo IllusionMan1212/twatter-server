@@ -183,7 +183,7 @@ func GetPosts(w http.ResponseWriter, req *http.Request) {
 			(SELECT ARRAY_AGG(attachments.url) FROM attachments WHERE attachments.post_id = post.id) as attachments_urls,
 			(SELECT ARRAY_AGG(attachments.type) FROM attachments WHERE attachments.post_id = post.id) as attachments_types,
 			(SELECT count(likes) FROM likes WHERE likes.post_id = post.id) as likes,
-			count(DISTINCT comments) as comments,
+			count(comments) as comments,
 			EXISTS (SELECT user_id FROM likes WHERE likes.post_id = post.id AND likes.user_id = $3) as liked
 				FROM posts post
 				LEFT JOIN posts parent
@@ -194,8 +194,6 @@ func GetPosts(w http.ResponseWriter, req *http.Request) {
 				ON parent.user_id = parent_author.id
 				LEFT JOIN posts comments
 				ON comments.parent_id = post.id
-				LEFT JOIN attachments
-				ON attachments.post_id = post.id
 				WHERE author.id = $1
 				AND post.parent_id IS NULL
 				GROUP BY post.id, parent.id, author.id, parent_author.username, parent_author.display_name, parent_author.avatar_url
@@ -210,33 +208,7 @@ func GetPosts(w http.ResponseWriter, req *http.Request) {
 			(SELECT ARRAY_AGG(attachments.url) FROM attachments WHERE attachments.post_id = post.id) as attachments_urls,
 			(SELECT ARRAY_AGG(attachments.type) FROM attachments WHERE attachments.post_id = post.id) as attachments_types,
 			(SELECT count(likes) FROM likes WHERE likes.post_id = post.id) as likes,
-			count(DISTINCT comments) as comments,
-			EXISTS (SELECT user_id FROM likes WHERE likes.post_id = post.id AND likes.user_id = $3)
-				FROM posts post
-				LEFT JOIN posts parent
-				ON post.parent_id = parent.id
-				INNER JOIN users author
-				ON post.user_id = author.id
-				LEFT JOIN users parent_author
-				ON parent.user_id = parent_author.id
-				LEFT JOIN posts comments
-				ON comments.parent_id = post.id
-				LEFT JOIN attachments
-				ON attachments.post_id = post.id
-				WHERE author.id = $1
-				GROUP BY post.id, parent.id, author.id, parent_author.username, parent_author.display_name, parent_author.avatar_url
-				ORDER BY post.created_at DESC
-				LIMIT 50 OFFSET $2;`
-		case "media":
-			selectQuery = `SELECT post.id as post_id,
-			author.id as author_id, author.username as author_username, author.display_name as author_display_name, author.avatar_url as author_avatar_url,
-			post.content as post_content, post.created_at as post_created_at,
-			parent.id as parent_id, parent.content as parent_content,
-			parent_author.username as parent_author_username, parent_author.display_name as parent_author_display_name, parent_author.avatar_url as parent_author_avatar_url,
-			(SELECT ARRAY_AGG(attachments.url) FROM attachments WHERE attachments.post_id = post.id) as attachments_urls,
-			(SELECT ARRAY_AGG(attachments.type) FROM attachments WHERE attachments.post_id = post.id) as attachments_types,
-			(SELECT count(likes) FROM likes WHERE likes.post_id = post.id) as likes,
-			count(DISTINCT comments) as comments,
+			count(comments) as comments,
 			EXISTS (SELECT user_id FROM likes WHERE likes.post_id = post.id AND likes.user_id = $3) as liked
 				FROM posts post
 				LEFT JOIN posts parent
@@ -247,6 +219,27 @@ func GetPosts(w http.ResponseWriter, req *http.Request) {
 				ON parent.user_id = parent_author.id
 				LEFT JOIN posts comments
 				ON comments.parent_id = post.id
+				WHERE author.id = $1
+				GROUP BY post.id, parent.id, author.id, parent_author.username, parent_author.display_name, parent_author.avatar_url
+				ORDER BY post.created_at DESC
+				LIMIT 50 OFFSET $2;`
+		case "media":
+			selectQuery = `SELECT post.id as post_id,
+			author.id as author_id, author.username as author_username, author.display_name as author_display_name, author.avatar_url as author_avatar_url,
+			post.content as post_content, post.created_at as post_created_at,
+			parent.id as parent_id, parent.content as parent_content,
+			parent_author.username as parent_author_username, parent_author.display_name as parent_author_display_name, parent_author.avatar_url as parent_author_avatar_url,
+			ARRAY_AGG(attachments.url) as attachments_urls, ARRAY_AGG(attachments.type) as attachments_types,
+			(SELECT count(likes) FROM likes WHERE likes.post_id = post.id) as likes,
+			(SELECT count(comments) FROM posts comments WHERE comments.parent_id = post.id) as comments,
+			EXISTS (SELECT user_id FROM likes WHERE likes.post_id = post.id AND likes.user_id = $3) as liked
+				FROM posts post
+				LEFT JOIN posts parent
+				ON post.parent_id = parent.id
+				INNER JOIN users author
+				ON post.user_id = author.id
+				LEFT JOIN users parent_author
+				ON parent.user_id = parent_author.id
 				INNER JOIN attachments
 				ON attachments.post_id = post.id
 				WHERE author.id = $1
