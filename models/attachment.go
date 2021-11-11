@@ -5,13 +5,15 @@ import (
 )
 
 type Attachment struct {
-	Url  string `json:"url"`
-	Type string `json:"type"`
+	Url   string `json:"url"`
+	Type  string `json:"type"`
+	Color string `json:"bg_color"`
 }
 
 type DBAttachment struct {
-	Urls  pgtype.VarcharArray `json:"url"`
-	Types pgtype.VarcharArray `json:"type"`
+	Urls   pgtype.VarcharArray `json:"url"`
+	Types  pgtype.VarcharArray `json:"type"`
+	Colors pgtype.VarcharArray `json:"bg_color"`
 }
 
 type SocketAttachment struct {

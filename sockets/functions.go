@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/illusionman1212/colorx"
 	"github.com/illusionman1212/twatter-server/db"
 	"github.com/illusionman1212/twatter-server/logger"
 	"github.com/illusionman1212/twatter-server/models"
@@ -86,8 +87,8 @@ func writePostAttachmentsFiles(attachments []models.SocketAttachment, postId uin
 			return []models.Attachment{}, errors.New("An error has occurred, please try again later")
 		}
 
-		insertQuery := `INSERT INTO attachments(post_id, url, type, size)
-		VALUES($1, $2, $3, $4)`
+		insertQuery := `INSERT INTO attachments(post_id, url, type, size, bg_color)
+		VALUES($1, $2, $3, $4, $5)`
 
 		attachmentUrl := fmt.Sprintf("%s/posts/%v/%v.%s",
 			os.Getenv("CDN_DOMAIN_URL"),
@@ -95,7 +96,15 @@ func writePostAttachmentsFiles(attachments []models.SocketAttachment, postId uin
 			i+1,
 			extension)
 
-		_, err = db.DBPool.Exec(context.Background(), insertQuery, postId, attachmentUrl, attachmentType, models.Large)
+		bgColor, _, err := colorx.GetProminentColor(imageBytes)
+		if err != nil {
+			logger.Errorf("Error while getting prominent color of attachment: %v", err)
+			return []models.Attachment{}, errors.New("An error has occurred")
+		}
+		// adding some transparency to the color
+		bgColor = bgColor + "88"
+
+		_, err = db.DBPool.Exec(context.Background(), insertQuery, postId, attachmentUrl, attachmentType, models.Large, bgColor)
 		if err != nil {
 			logger.Errorf("Error while inserting into attachments table: %v", err)
 			return []models.Attachment{}, errors.New("An error has occurred")
@@ -104,6 +113,7 @@ func writePostAttachmentsFiles(attachments []models.SocketAttachment, postId uin
 		returnedAttachment := &models.Attachment{}
 		returnedAttachment.Type = attachmentType
 		returnedAttachment.Url = attachmentUrl
+		returnedAttachment.Color = bgColor
 
 		returnedAttachments = append(returnedAttachments, *returnedAttachment)
 		file.Write(imageBytes)

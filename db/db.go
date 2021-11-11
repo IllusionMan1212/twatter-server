@@ -88,7 +88,8 @@ const attachments_table = `CREATE TABLE IF NOT EXISTS attachments(
 	post_id BIGINT NOT NULL, FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
 	url varchar NOT NULL UNIQUE,
 	type attachment_type NOT NULL,
-	size attachment_size NOT NULL
+	size attachment_size NOT NULL,
+	bg_color varchar(9) NOT NULL DEFAULT '#00000000'
 )`
 
 var DBPool *pgxpool.Pool

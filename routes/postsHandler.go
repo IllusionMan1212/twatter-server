@@ -182,6 +182,7 @@ func GetPosts(w http.ResponseWriter, req *http.Request) {
 			parent_author.username as parent_author_username, parent_author.display_name as parent_author_display_name, parent_author.avatar_url as parent_author_avatar_url, 
 			(SELECT ARRAY_AGG(attachments.url) FROM attachments WHERE attachments.post_id = post.id) as attachments_urls,
 			(SELECT ARRAY_AGG(attachments.type) FROM attachments WHERE attachments.post_id = post.id) as attachments_types,
+			(SELECT ARRAY_AGG(attachments.bg_color) FROM attachments WHERE attachments.post_id = post.id) as attachments_colors,
 			(SELECT count(likes) FROM likes WHERE likes.post_id = post.id) as likes,
 			count(comments) as comments,
 			EXISTS (SELECT user_id FROM likes WHERE likes.post_id = post.id AND likes.user_id = $3) as liked
@@ -207,6 +208,7 @@ func GetPosts(w http.ResponseWriter, req *http.Request) {
 			parent_author.username as parent_author_username, parent_author.display_name as parent_author_display_name, parent_author.avatar_url as parent_author_avatar_url,
 			(SELECT ARRAY_AGG(attachments.url) FROM attachments WHERE attachments.post_id = post.id) as attachments_urls,
 			(SELECT ARRAY_AGG(attachments.type) FROM attachments WHERE attachments.post_id = post.id) as attachments_types,
+			(SELECT ARRAY_AGG(attachments.bg_color) FROM attachments WHERE attachments.post_id = post.id) as attachments_colors,
 			(SELECT count(likes) FROM likes WHERE likes.post_id = post.id) as likes,
 			count(comments) as comments,
 			EXISTS (SELECT user_id FROM likes WHERE likes.post_id = post.id AND likes.user_id = $3) as liked
@@ -229,7 +231,7 @@ func GetPosts(w http.ResponseWriter, req *http.Request) {
 			post.content as post_content, post.created_at as post_created_at,
 			parent.id as parent_id, parent.content as parent_content,
 			parent_author.username as parent_author_username, parent_author.display_name as parent_author_display_name, parent_author.avatar_url as parent_author_avatar_url,
-			ARRAY_AGG(attachments.url) as attachments_urls, ARRAY_AGG(attachments.type) as attachments_types,
+			ARRAY_AGG(attachments.url) as attachments_urls, ARRAY_AGG(attachments.type) as attachments_types, ARRAY_AGG(attachments.bg_color) as attachments_colors,
 			(SELECT count(likes) FROM likes WHERE likes.post_id = post.id) as likes,
 			(SELECT count(comments) FROM posts comments WHERE comments.parent_id = post.id) as comments,
 			EXISTS (SELECT user_id FROM likes WHERE likes.post_id = post.id AND likes.user_id = $3) as liked
@@ -262,6 +264,7 @@ func GetPosts(w http.ResponseWriter, req *http.Request) {
 	parent_author.username as parent_author_username, parent_author.display_name as parent_author_display_name, parent_author.avatar_url as parent_author_avatar_url,
 	(SELECT ARRAY_AGG(attachments.url) FROM attachments WHERE attachments.post_id = post.id) as attachments_urls,
 	(SELECT ARRAY_AGG(attachments.type) FROM attachments WHERE attachments.post_id = post.id) as attachments_types,
+	(SELECT ARRAY_AGG(attachments.bg_color) FROM attachments WHERE attachments.post_id = post.id) as attachments_colors,
 	(SELECT count(likes) FROM likes WHERE likes.post_id = post.id) as likes,
 	count(DISTINCT comments) as comments,
 	EXISTS (SELECT user_id FROM likes WHERE likes.post_id = post.id AND likes.user_id = $2) as liked
@@ -302,7 +305,7 @@ func GetPosts(w http.ResponseWriter, req *http.Request) {
 			&post.Author.Username, &post.Author.DisplayName, &post.Author.AvatarURL,
 			&post.Content, &post.CreatedAt,
 			&parent.ID, &parent.Content, &parent.Author.Username, &parent.Author.DisplayName, &parent.Author.AvatarURL,
-			&attachments.Urls, &attachments.Types,
+			&attachments.Urls, &attachments.Types, &attachments.Colors,
 			&post.Likes, &post.Comments, &post.Liked)
 		if err != nil {
 			utils.InternalServerErrorWithJSON(w, "")
@@ -318,6 +321,7 @@ func GetPosts(w http.ResponseWriter, req *http.Request) {
 			postAttachment := &models.Attachment{}
 			postAttachment.Url = attachments.Urls.Elements[i].String
 			postAttachment.Type = attachments.Types.Elements[i].String
+			postAttachment.Color = attachments.Colors.Elements[i].String
 			postAttachments = append(postAttachments, *postAttachment)
 		}
 
@@ -367,10 +371,9 @@ author.id as author_id, author.username as author_username, author.display_name 
 post.content as post_content, post.created_at as post_created_at,
 parent.id as parent_id, parent.content as parent_content,
 parent_author.username as parent_author_username, parent_author.display_name as parent_author_display_name, parent_author.avatar_url as parent_author_avatar_url,
-(SELECT ARRAY_AGG(attachments.url) FROM attachments WHERE attachments.post_id = post.id) as attachments_urls,
-(SELECT ARRAY_AGG(attachments.type) FROM attachments WHERE attachments.post_id = post.id) as attachments_types,
+ARRAY_AGG(attachments.url) as attachments_urls, ARRAY_AGG(attachments.type) as attachments_types, ARRAY_AGG(attachments.bg_color) as attachments_colors,
 (SELECT count(likes) FROM likes WHERE likes.post_id = $1) as likes,
-count(DISTINCT comments) as comments,
+(SELECT count(comments) FROM posts comments WHERE comments.parent_id = post.id) as comments,
 EXISTS (SELECT user_id FROM likes WHERE likes.post_id = $1 AND likes.user_id = $2) as liked
 FROM posts post
 INNER JOIN users author
@@ -379,8 +382,6 @@ LEFT JOIN posts parent
 ON post.parent_id = parent.id
 LEFT JOIN users parent_author
 ON parent.user_id = parent_author.id
-LEFT JOIN posts comments
-ON comments.parent_id = post.id
 LEFT JOIN attachments
 ON attachments.post_id = post.id
 WHERE post.id = $1
@@ -395,7 +396,7 @@ GROUP BY post.id, author.id, parent.id, parent_author.username, parent_author.di
 		&authorId, &post.Author.Username, &post.Author.DisplayName, &post.Author.AvatarURL,
 		&post.Content, &post.CreatedAt,
 		&parent.ID, &parent.Content, &parent.Author.Username, &parent.Author.DisplayName, &parent.Author.AvatarURL,
-		&attachments.Urls, &attachments.Types,
+		&attachments.Urls, &attachments.Types, &attachments.Colors,
 		&post.Likes,
 		&post.Comments,
 		&post.Liked)
@@ -409,6 +410,7 @@ GROUP BY post.id, author.id, parent.id, parent_author.username, parent_author.di
 		postAttachment := &models.Attachment{}
 		postAttachment.Url = attachments.Urls.Elements[i].String
 		postAttachment.Type = attachments.Types.Elements[i].String
+		postAttachment.Color = attachments.Colors.Elements[i].String
 		postAttachments = append(postAttachments, *postAttachment)
 	}
 
@@ -463,15 +465,13 @@ func GetComments(w http.ResponseWriter, req *http.Request) {
 	query := `SELECT comment.id as comment_id,
 author.id as author_id, author.username as author_username, author.display_name as author_display_name, author.avatar_url as author_avatar_url,
 comment.content as comment_content, comment.created_at as comment_created_at,
-ARRAY_AGG(DISTINCT attachments.url) as attachments_urls, ARRAY_AGG(attachments.type) as attachments_types,
+ARRAY_AGG(DISTINCT attachments.url) as attachments_urls, ARRAY_AGG(attachments.type) as attachments_types, ARRAY_AGG(attachments.bg_color) as attachments_colors,
 (SELECT count(likes) FROM likes WHERE likes.post_id = comment.id) as likes,
-count(DISTINCT comments) as comments,
+(SELECT count(comments) FROM posts comments WHERE comments.parent_id = comment.id) as comments,
 EXISTS (SELECT user_id FROM likes WHERE likes.post_id = comment.id AND likes.user_id = $2)
 FROM posts comment
 INNER JOIN users author
 ON comment.user_id = author.id
-LEFT JOIN posts comments
-ON comments.parent_id = comment.id
 LEFT JOIN attachments
 ON attachments.post_id = comment.id
 WHERE comment.parent_id = $1
@@ -504,7 +504,7 @@ GROUP BY comment.id, author.id;`
 		err = rows.Scan(&commentId,
 			&authorId, &comment.Author.Username, &comment.Author.DisplayName, &comment.Author.AvatarURL,
 			&comment.Content, &comment.CreatedAt,
-			&attachments.Urls, &attachments.Types,
+			&attachments.Urls, &attachments.Types, &attachments.Colors,
 			&comment.Likes, &comment.Comments, &comment.Liked)
 		if err != nil {
 			utils.InternalServerErrorWithJSON(w, "")
@@ -521,6 +521,7 @@ GROUP BY comment.id, author.id;`
 			commentAttachment := &models.Attachment{}
 			commentAttachment.Url = attachments.Urls.Elements[i].String
 			commentAttachment.Type = attachments.Types.Elements[i].String
+			commentAttachment.Color = attachments.Colors.Elements[i].String
 			commentAttachments = append(commentAttachments, *commentAttachment)
 		}
 
