@@ -1,8 +1,7 @@
 package sockets
 
 import (
-	"fmt"
-
+	"github.com/illusionman1212/twatter-server/logger"
 	"github.com/illusionman1212/twatter-server/models"
 	"github.com/illusionman1212/twatter-server/utils"
 )
@@ -98,9 +97,7 @@ func handleSocketEvent(socketPayload *models.SocketPayload, clients []*Client, i
 	case "removeBirthday":
 		RemoveBirthday(socketPayload, invokingClient)
 	case "typing":
-		Typing(socketPayload, invokingClient, "typing")
-	case "stopTyping":
-		Typing(socketPayload, invokingClient, "stopTyping")
+		Typing(socketPayload, invokingClient)
 	case "markMessagesAsRead":
 		MarkMessagesAsRead(socketPayload, invokingClient, clients)
 	case "message":
@@ -108,6 +105,6 @@ func handleSocketEvent(socketPayload *models.SocketPayload, clients []*Client, i
 	case "deleteMessage":
 		DeleteMessage(socketPayload, clients, invokingClient, message)
 	default:
-		fmt.Print("Received unknown")
+		logger.Infof("Received unknown socket event: %v", socketPayload)
 	}
 }

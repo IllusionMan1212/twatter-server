@@ -120,7 +120,7 @@ func DeleteMessage(socketPayload *models.SocketPayload, clients []*Client, invok
 	}
 }
 
-func Typing(socketPayload *models.SocketPayload, invokingClient *Client, eventType string) {
+func Typing(socketPayload *models.SocketPayload, invokingClient *Client) {
 	data := &models.TypingData{}
 
 	utils.UnmarshalJSON([]byte(utils.MarshalJSON(socketPayload.Data)), data)
@@ -132,7 +132,7 @@ func Typing(socketPayload *models.SocketPayload, invokingClient *Client, eventTy
 
 	typingData.ConversationID = data.ConversationID
 
-	payload.EventType = eventType
+	payload.EventType = socketPayload.EventType
 	payload.Data = typingData
 
 	for _, receiverClient := range invokingClient.hub.users[data.ReceiverID] {
