@@ -17,7 +17,7 @@ import (
 
 const (
 	dateLayout       = "2006-01-02"
-	displayNameRegex = "(?i)^[a-z0-9!$%^&*()_+|~=`{}\\[\\]:\";'<>?,.\\/\\\\\\s]+$"
+	displayNameRegex = "(?i)^[a-z0-9!$%^&*()_+|~=`{}\\[\\]:\";'<>?,.\\/\\\\\\s-]+$"
 )
 
 func UpdateProfile(socketPayload *models.SocketPayload, invokingClient *Client) {
