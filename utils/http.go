@@ -54,6 +54,13 @@ func PayloadTooLargeWithJSON(w http.ResponseWriter, json string) {
 	w.Write([]byte(json))
 }
 
+// HTTP 415
+func UnsupportedMediaTypeWithJSON(w http.ResponseWriter, json string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusUnsupportedMediaType)
+	w.Write([]byte(json))
+}
+
 // HTTP 500
 func InternalServerErrorWithJSON(w http.ResponseWriter, errMessage string) {
 	w.Header().Set("Content-Type", "application/json")

@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/illusionman1212/twatter-server/db"
+	"github.com/illusionman1212/twatter-server/functions"
 	"github.com/illusionman1212/twatter-server/logger"
 	"github.com/illusionman1212/twatter-server/models"
 	"github.com/illusionman1212/twatter-server/redissession"
@@ -30,8 +31,9 @@ import (
 )
 
 const (
-	dateLayout    = "2006-01-02"
-	usernameRegex = "(?i)^[a-z0-9_]+$"
+	dateLayout       = "2006-01-02"
+	usernameRegex    = "(?i)^[a-z0-9_]+$"
+	displayNameRegex = "(?i)^[a-z0-9!$%^&*()_+|~=`{}\\[\\]:\";'<>?,.\\/\\\\\\s-]+$"
 )
 
 func ValidateToken(w http.ResponseWriter, req *http.Request) {
@@ -41,25 +43,11 @@ func ValidateToken(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	user := &models.User{}
-	var userId uint64
-
-	// query the db for the user
-	err = db.DBPool.QueryRow(context.Background(), `SELECT id, username, display_name, bio, birthday, created_at, finished_setup, avatar_url FROM users WHERE id = $1;`,
-		sessionUser.ID).Scan(&userId, &user.Username, &user.DisplayName, &user.Bio, &user.Birthday, &user.CreatedAt, &user.FinishedSetup, &user.AvatarURL)
-	if err != nil {
-		utils.InternalServerErrorWithJSON(w, "")
-		logger.Errorf("Error while validating user's token: %v", err)
-		return
-	}
-
-	user.ID = fmt.Sprintf("%v", userId)
-
 	utils.OkWithJSON(w, fmt.Sprintf(`{
 		"status": 200,
 		"success": true,
 		"user": %v 
-	}`, utils.MarshalJSON(user)))
+	}`, utils.MarshalJSON(sessionUser)))
 }
 
 func GetUserData(w http.ResponseWriter, req *http.Request) {
@@ -477,9 +465,9 @@ func InitialSetup(w http.ResponseWriter, req *http.Request) {
 	if image != nil {
 		mimetype := image.Header.Get("Content-Type")
 		if !utils.AllowedProfileImageMimetypes[mimetype] {
-			utils.BadRequestWithJSON(w, `{
+			utils.UnsupportedMediaTypeWithJSON(w, `{
 				"message": "Invalid image type, only .jpg, .jpeg, .png, .webp are accepted",
-				"status": 400,
+				"status": 415,
 				"success": false
 			}`)
 			logger.Info("Attempt to upload an unsupported image type")
@@ -783,4 +771,295 @@ func Logout(w http.ResponseWriter, req *http.Request) {
 		"status": 200,
 		"success": true
 	}`)
+}
+
+func RemoveBirthday(w http.ResponseWriter, req *http.Request) {
+	sessionUser, err := utils.ValidateSession(req, w)
+	if err != nil {
+		logger.Error(err)
+		return
+	}
+
+	updatedSession := sessionUser
+
+	_, err = db.DBPool.Exec(context.Background(), "UPDATE users SET birthday = null WHERE id = $1;", sessionUser.ID)
+	if err != nil {
+		utils.InternalServerErrorWithJSON(w, "")
+		logger.Errorf("Error while removing user's birthday: %v", err)
+		return
+	}
+
+	updatedSession.Birthday.Valid = false
+
+	redissession.SetSession("user", updatedSession, req, w)
+
+	utils.OkWithJSON(w, `{
+		"message": "Successfully removed birthday",
+		"status": 200,
+		"success": true
+	}`)
+}
+
+func UpdateProfile(w http.ResponseWriter, req *http.Request) {
+	err := req.ParseMultipartForm(10 << 20) // 10 MB
+	if err != nil {
+		utils.InternalServerErrorWithJSON(w, "")
+		logger.Errorf("Error while parsing multipart form: %v", err)
+		return
+	}
+
+	sessionUser, err := utils.ValidateSession(req, w)
+	if err != nil {
+		logger.Error(err)
+		return
+	}
+
+	updatedSession := sessionUser
+
+	bio := req.MultipartForm.Value["bio"][0]
+	displayName := req.MultipartForm.Value["displayName"][0]
+	birthdayYear := req.MultipartForm.Value["birthday_year"][0]
+	birthdayMonth := req.MultipartForm.Value["birthday_month"][0]
+	birthdayDay := req.MultipartForm.Value["birthday_day"][0]
+	isBirthdaySet := req.MultipartForm.Value["isBirthdaySet"][0]
+
+	var image *multipart.FileHeader
+	profileImageB64 := ""
+	if req.MultipartForm.File["profileImage"] != nil {
+		image = req.MultipartForm.File["profileImage"][0]
+	}
+
+	if bio != "" {
+		if len(bio) > 150 {
+			utils.PayloadTooLargeWithJSON(w, `{
+				"message": "Bio cannot be longer than 150 characters",
+				"status": 413,
+				"success": false
+			}`)
+			logger.Errorf("Bio with over 150 characters rejected")
+			return
+		}
+
+		query := `UPDATE users SET bio = $1 WHERE id = $2;`
+		_, err := db.DBPool.Exec(context.Background(), query, bio, sessionUser.ID)
+
+		if err != nil {
+			utils.InternalServerErrorWithJSON(w, "")
+			logger.Errorf("Error while updating user's bio: %v", err)
+			return
+		}
+
+		updatedSession.Bio = bio
+	}
+
+	regex, err := regexp.Compile(displayNameRegex)
+	if err != nil {
+		utils.InternalServerErrorWithJSON(w, "")
+		logger.Errorf("Error while compiling displayname regex: %v", err)
+		return
+	}
+
+	displayName = strings.TrimSpace(displayName)
+
+	if displayName != "" {
+		if regex.MatchString(displayName) {
+			query := `UPDATE users SET display_name = $1 WHERE id = $2;`
+			_, err := db.DBPool.Exec(context.Background(), query, displayName, sessionUser.ID)
+			if err != nil {
+				utils.InternalServerErrorWithJSON(w, "")
+				logger.Errorf("Error while updating user's display name: %v", err)
+				return
+			}
+
+			updatedSession.DisplayName = displayName
+		} else {
+			utils.BadRequestWithJSON(w, `{
+				"message": "Display name cannot contain special characters",
+				"status": 400,
+				"success": false
+			}`)
+			return
+		}
+	} else {
+		utils.BadRequestWithJSON(w, `{
+			"message": "Display name cannot be empty",
+			"status": 400,
+			"success": false
+		}`)
+		return
+	}
+
+	mimetype := ""
+
+	if image != nil {
+		mimetype = image.Header.Get("Content-Type")
+
+		if !utils.AllowedProfileImageMimetypes[mimetype] {
+			utils.UnsupportedMediaTypeWithJSON(w, `{
+				"message": "Unsupported file format",
+				"status": 415,
+				"success": false
+			}`)
+			logger.Error("Unsupported file format")
+			return
+		}
+
+		imageContent, err := image.Open()
+		if err != nil {
+			utils.InternalServerErrorWithJSON(w, "")
+			logger.Errorf("Error while opening image: %v", err)
+			return
+		}
+
+		buf, err := ioutil.ReadAll(imageContent)
+		if err != nil {
+			utils.InternalServerErrorWithJSON(w, "")
+			logger.Errorf("Error while reading image data: %v", err)
+			return
+		}
+
+		profileImageB64 = base64.StdEncoding.EncodeToString(buf)
+
+		err = functions.WriteProfileImage(mimetype, sessionUser.ID, buf)
+		if err != nil {
+			utils.InternalServerErrorWithJSON(w, "")
+			logger.Errorf("Error while writing profile image: %v", err)
+			return
+		}
+
+		indexOfExtension := strings.LastIndex(sessionUser.AvatarURL, ".")
+		baseURL := sessionUser.AvatarURL[0 : indexOfExtension+1]
+		extension := strings.Split(mimetype, "/")[1]
+		updatedSession.AvatarURL = baseURL + extension + "#"
+	}
+
+	day, err := strconv.Atoi(birthdayDay)
+	if err != nil {
+		utils.InternalServerErrorWithJSON(w, "")
+		logger.Errorf("Error while converting string to int: %v", err)
+		return
+	}
+
+	month, err := strconv.Atoi(birthdayMonth)
+	if err != nil {
+		utils.InternalServerErrorWithJSON(w, "")
+		logger.Errorf("Error while converting string to int: %v", err)
+		return
+	}
+
+	year, err := strconv.Atoi(birthdayYear)
+	if err != nil {
+		utils.InternalServerErrorWithJSON(w, "")
+		logger.Errorf("Error while converting string to int: %v", err)
+		return
+	}
+
+	birthdayModel := models.Birthday{
+		Day:   day,
+		Month: month,
+		Year:  year,
+	}
+
+	isBirthdayValid := utils.ValidateBirthday(birthdayModel)
+
+	var birthday time.Time
+	var birthdayString string
+
+	if isBirthdayValid && isBirthdaySet == "true" {
+		formattedBirthday := fmt.Sprintf("%v-%v-%v", birthdayModel.Year, birthdayModel.Month, birthdayModel.Day)
+
+		query := `UPDATE users SET birthday = $1 WHERE id = $2;`
+		_, err := db.DBPool.Exec(context.Background(), query, formattedBirthday, sessionUser.ID)
+		if err != nil {
+			utils.InternalServerErrorWithJSON(w, "")
+			logger.Errorf("Error while updating user's birthday: %v", err)
+			return
+		}
+
+		day := fmt.Sprintf("%v", birthdayModel.Day)
+		month := fmt.Sprintf("%v", birthdayModel.Month)
+		year := fmt.Sprintf("%v", birthdayModel.Year)
+
+		if birthdayModel.Day < 10 {
+			day = "0" + day
+		}
+
+		if birthdayModel.Month < 10 {
+			month = "0" + month
+		}
+
+		birthdayString = year + "-" + month + "-" + day
+	} else if !isBirthdayValid && isBirthdaySet == "true" {
+		utils.BadRequestWithJSON(w, `{
+			"message": "Invalid birthday, please enter a correct one.",
+			"status": 400,
+			"success": false
+		}`)
+		logger.Errorf("Attempt to change birthday to an invalid one: %v", birthdayModel)
+		return
+	} else {
+		birthdayString = dateLayout
+	}
+
+	birthday, err = time.Parse(dateLayout, birthdayString)
+	if err != nil {
+		utils.InternalServerErrorWithJSON(w, "")
+		logger.Errorf("Error while parsing date: %v", err)
+		return
+	}
+
+	updatedSession.Birthday.Time = birthday
+	updatedSession.Birthday.Valid = isBirthdayValid
+
+	payload := &models.UpdateProfileReturnPayload{}
+
+	payload.UserID = sessionUser.ID
+	payload.DisplayName = displayName
+	payload.Bio = bio
+	payload.ProfileImage = profileImageB64
+	payload.ProfileImageMimetype = mimetype
+	payload.Birthday.Time = birthday
+	payload.Birthday.Valid = isBirthdayValid
+
+	err = redissession.SetSession("user", sessionUser, req, w)
+	if err != nil {
+		utils.InternalServerErrorWithJSON(w, "")
+		logger.Errorf("Error while updating redis session: %v", err)
+		return
+	}
+
+	utils.OkWithJSON(w, fmt.Sprintf(`{
+		"message": "",
+		"status": 200,
+		"success": true,
+		"data": %s
+	}`, utils.MarshalJSON(payload)))
+}
+
+func ChangeUsername(w http.ResponseWriter, req *http.Request) {
+	// newUsername := "lol"
+	// TODO: validate username against regex
+	// make sure username is not used and handle that
+	// uhh that's it i think
+
+	// _, err := db.DBPool.Exec(context.Background(), "UPDATE users SET username = $1 WHERE id = $2;", newUsername, invokingClient.userId)
+	// if err != nil {
+	// sendGenericSocketErr(invokingClient)
+	// logger.Errorf("Error while changing user's username: %v", err)
+	// return
+	// }
+}
+
+func ChangePassword(w http.ResponseWriter, req *http.Request) {
+	// TODO: This is super tricky when user is logged in on other devices
+	// regenerate tokens
+	// logout user on all other devices
+}
+
+func DeleteAccount(w http.ResponseWriter, req *http.Request) {
+	// TODO: also tricky when user is logged in on other devices
+	// remove session from redis
+	// remove cookie on frontend
+	// logout user and redirect them to login page on frontend
+	// logout user on all other devices
 }

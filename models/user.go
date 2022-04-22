@@ -56,22 +56,11 @@ type Birthday struct {
 	Day   int `json:"day"`
 }
 
-type ProfileValues struct {
-	DisplayName   string           `json:"displayName"`
-	ProfileImage  SocketAttachment `json:"profileImage"`
-	Bio           string           `json:"bio"`
-	Birthday      Birthday         `json:"birthday"`
-	IsBirthdaySet bool             `json:"isBirthdaySet"`
-}
-
-type RemoveBirthdayReturnPayload struct {
-	ID string `json:"id"`
-}
-
 type UpdateProfileReturnPayload struct {
-	UserID       string       `json:"userId"`
-	DisplayName  string       `json:"displayName"`
-	Bio          string       `json:"bio"`
-	ProfileImage string       `json:"profileImage"`
-	Birthday     sql.NullTime `json:"birthday"`
+	UserID               string       `json:"userId"`
+	DisplayName          string       `json:"displayName"`
+	Bio                  string       `json:"bio"`
+	ProfileImage         string       `json:"profileImage"`
+	ProfileImageMimetype string       `json:"profileImageMimetype"`
+	Birthday             sql.NullTime `json:"birthday"`
 }

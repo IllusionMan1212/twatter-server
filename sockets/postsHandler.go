@@ -28,6 +28,8 @@ func Post(socketPayload *models.SocketPayload, clients []*Client, invokingClient
 		return
 	}
 
+	// TODO: strip whitespace and newline chars (\n)
+
 	if len(post.Attachments) == 0 && post.Content == "" {
 		errPayload := `{
 			"eventType": "postError",

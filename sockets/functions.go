@@ -39,6 +39,7 @@ func writePostAttachmentsFiles(attachments []models.SocketAttachment, postId uin
 
 		imageBytes = buf
 
+		// TODO: don't check the mimetype, check the actual magic number on the header
 		mimetypeSlice := strings.Split(mimetype, "/")
 		attachmentMimetype := mimetypeSlice[0]
 		extension := mimetypeSlice[1]

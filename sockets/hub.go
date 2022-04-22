@@ -93,9 +93,9 @@ func handleSocketEvent(socketPayload *models.SocketPayload, clients []*Client, i
 			client.emitEvent(message)
 		}
 	case "updateProfile":
-		UpdateProfile(socketPayload, invokingClient)
-	case "removeBirthday":
-		RemoveBirthday(socketPayload, invokingClient)
+		invokingClient.emitEvent(message)
+	case "birthdayRemoved":
+		invokingClient.emitEvent(message)
 	case "typing":
 		Typing(socketPayload, invokingClient)
 	case "markMessagesAsRead":
