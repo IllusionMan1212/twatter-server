@@ -177,7 +177,7 @@ func GetPosts(w http.ResponseWriter, req *http.Request) {
 		case "posts":
 			selectQuery = `SELECT post.id as post_id,
       author.id as author_id, author.username as author_username, author.display_name as author_display_name, author.avatar_url as author_avatar_url,
-      post.content as post_content, post.created_at as post_created_at,
+      post.content as post_content, post.created_at as post_created_at, post.parent_deleted as post_parent_deleted,
 			parent.id as parent_id, parent.content as parent_content,
 			parent_author.username as parent_author_username, parent_author.display_name as parent_author_display_name, parent_author.avatar_url as parent_author_avatar_url, 
 			(SELECT ARRAY_AGG(attachments.url) FROM attachments WHERE attachments.post_id = post.id) as attachments_urls,
@@ -197,13 +197,14 @@ func GetPosts(w http.ResponseWriter, req *http.Request) {
 				ON comments.parent_id = post.id
 				WHERE author.id = $1
 				AND post.parent_id IS NULL
+				AND post.parent_deleted = false
 				GROUP BY post.id, parent.id, author.id, parent_author.username, parent_author.display_name, parent_author.avatar_url
 				ORDER BY post.created_at DESC
 				LIMIT 50 OFFSET $2;`
 		case "comments":
 			selectQuery = `SELECT post.id as post_id,
 			author.id as author_id, author.username as author_username, author.display_name as author_display_name, author.avatar_url as author_avatar_url,
-			post.content as post_content, post.created_at as post_created_at,
+			post.content as post_content, post.created_at as post_created_at, post.parent_deleted as post_parent_deleted,
 			parent.id as parent_id, parent.content as parent_content,
 			parent_author.username as parent_author_username, parent_author.display_name as parent_author_display_name, parent_author.avatar_url as parent_author_avatar_url,
 			(SELECT ARRAY_AGG(attachments.url) FROM attachments WHERE attachments.post_id = post.id) as attachments_urls,
@@ -228,7 +229,7 @@ func GetPosts(w http.ResponseWriter, req *http.Request) {
 		case "media":
 			selectQuery = `SELECT post.id as post_id,
 			author.id as author_id, author.username as author_username, author.display_name as author_display_name, author.avatar_url as author_avatar_url,
-			post.content as post_content, post.created_at as post_created_at,
+			post.content as post_content, post.created_at as post_created_at, post.parent_deleted as post_parent_deleted,
 			parent.id as parent_id, parent.content as parent_content,
 			parent_author.username as parent_author_username, parent_author.display_name as parent_author_display_name, parent_author.avatar_url as parent_author_avatar_url,
 			ARRAY_AGG(attachments.url) as attachments_urls, ARRAY_AGG(attachments.type) as attachments_types, ARRAY_AGG(attachments.bg_color) as attachments_colors,
@@ -259,7 +260,7 @@ func GetPosts(w http.ResponseWriter, req *http.Request) {
 	} else {
 		selectQuery = `SELECT post.id as post_id,
 	author.id as author_id, author.username as author_username, author.display_name as author_display_name, author.avatar_url as author_avatar_url,
-	post.content as post_content, post.created_at as post_created_at,
+	post.content as post_content, post.created_at as post_created_at, post.parent_deleted as post_parent_deleted,
 	parent.id as parent_id, parent.content as parent_content,
 	parent_author.username as parent_author_username, parent_author.display_name as parent_author_display_name, parent_author.avatar_url as parent_author_avatar_url,
 	(SELECT ARRAY_AGG(attachments.url) FROM attachments WHERE attachments.post_id = post.id) as attachments_urls,
@@ -303,7 +304,7 @@ func GetPosts(w http.ResponseWriter, req *http.Request) {
 
 		err = rows.Scan(&postId, &authorId,
 			&post.Author.Username, &post.Author.DisplayName, &post.Author.AvatarURL,
-			&post.Content, &post.CreatedAt,
+			&post.Content, &post.CreatedAt, &post.ParentDeleted,
 			&parent.ID, &parent.Content, &parent.Author.Username, &parent.Author.DisplayName, &parent.Author.AvatarURL,
 			&attachments.Urls, &attachments.Types, &attachments.Colors,
 			&post.Likes, &post.Comments, &post.Liked)
@@ -368,7 +369,7 @@ func GetPost(w http.ResponseWriter, req *http.Request) {
 
 	query := `SELECT post.id as post_id,
 author.id as author_id, author.username as author_username, author.display_name as author_display_name, author.avatar_url as author_avatar_url,
-post.content as post_content, post.created_at as post_created_at,
+post.content as post_content, post.created_at as post_created_at, post.parent_deleted as post_parent_deleted,
 parent.id as parent_id, parent.content as parent_content,
 parent_author.username as parent_author_username, parent_author.display_name as parent_author_display_name, parent_author.avatar_url as parent_author_avatar_url,
 ARRAY_AGG(attachments.url) as attachments_urls, ARRAY_AGG(attachments.type) as attachments_types, ARRAY_AGG(attachments.bg_color) as attachments_colors,
@@ -394,7 +395,7 @@ GROUP BY post.id, author.id, parent.id, parent_author.username, parent_author.di
 
 	err := db.DBPool.QueryRow(context.Background(), query, postIdIn, userId).Scan(&postIdOut,
 		&authorId, &post.Author.Username, &post.Author.DisplayName, &post.Author.AvatarURL,
-		&post.Content, &post.CreatedAt,
+		&post.Content, &post.CreatedAt, &post.ParentDeleted,
 		&parent.ID, &parent.Content, &parent.Author.Username, &parent.Author.DisplayName, &parent.Author.AvatarURL,
 		&attachments.Urls, &attachments.Types, &attachments.Colors,
 		&post.Likes,

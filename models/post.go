@@ -21,25 +21,22 @@ type SocketComment struct {
 }
 
 type DBPost struct {
-	ID          string       `json:"id"`
-	Author      User         `json:"author"`
-	Content     string       `json:"content"`
-	CreatedAt   time.Time    `json:"created_at"`
-	ReplyingTo  ParentPost   `json:"replying_to"`
-	Attachments []Attachment `json:"attachments"`
-	Likes       int          `json:"likes"`
-	Comments    int          `json:"comments"`
-	Liked       bool         `json:"liked"`
+	ID            string       `json:"id"`
+	Author        User         `json:"author"`
+	Content       string       `json:"content"`
+	CreatedAt     time.Time    `json:"created_at"`
+	ReplyingTo    ParentPost   `json:"replying_to"`
+	Attachments   []Attachment `json:"attachments"`
+	Likes         int          `json:"likes"`
+	Comments      int          `json:"comments"`
+	Liked         bool         `json:"liked"`
+	ParentDeleted bool         `json:"parent_deleted"`
 }
 
 type ParentPost struct {
-	ID         sql.NullString `json:"id"`
-	Author     ParentUser     `json:"author"`
-	Content    sql.NullString `json:"content"`
-	CreatedAt  sql.NullTime   `json:"created_at"`
-	ReplyingTo *ParentPost    `json:"replying_to"`
-	Likes      sql.NullInt32  `json:"likes"`
-	Comments   sql.NullInt32  `json:"comments"`
+	ID      sql.NullString `json:"id"`
+	Author  ParentUser     `json:"author"`
+	Content sql.NullString `json:"content"`
 }
 
 type DeletePostBody struct {
